@@ -14,11 +14,13 @@ start(N) ->
     Pids = [ spawn_link(fun() -> worker_loop(idle) end) || _ <- lists:seq(1, N) ],
     M = [ erlang:monitor(process, Pid) || Pid <- Pids ],
     [ erlang:send(Pid, start) || Pid <- Pids ],
+    T1 = erlang:monotonic_time(millisecond),
     timer:sleep(?CollectTime),
     [ erlang:send(Pid, stop) || Pid <- Pids],
+    T2 = erlang:monotonic_time(millisecond),
     [{c, C}] = ets:lookup(?MODULE, c),
     receive_downs(M),
-    io:format("~p => ~p /s~n", [N, C / (?CollectTime / 1000)]),
+    io:format("~p => ~p /s (~p in ~p s)~n", [N, C / ((T2-T1) / 1000), C, (T2-T1)/1000]),
     ets:delete(?MODULE).
 
 worker_loop(idle) ->
