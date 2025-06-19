@@ -5,10 +5,12 @@
 -define(CollectTime, timer:seconds(5)).
 
 start() ->
+    io:format("n,f,r,t~n"),
+    Baseline = start(1, undefined),
     Runs = [ trunc(math:pow(2, X)) || X <- lists:seq(1, 8) ],
-    [ start(X) || X <- Runs ].
+    [ start(X, Baseline) || X <- Runs ].
 
-start(N) ->
+start(N, Baseline) ->
     ets:new(?MODULE, [public, named_table]),
     ets:insert(?MODULE, {c, 0}),
     Pids = [ spawn_link(fun() -> worker_loop(idle) end) || _ <- lists:seq(1, N) ],
@@ -20,8 +22,11 @@ start(N) ->
     T2 = erlang:monotonic_time(millisecond),
     [{c, C}] = ets:lookup(?MODULE, c),
     receive_downs(M),
-    io:format("~p => ~p /s (~p in ~p s)~n", [N, C / ((T2-T1) / 1000), C, (T2-T1)/1000]),
-    ets:delete(?MODULE).
+    Rate = C / ((T2-T1) / 1000),
+    Baseline2 = if is_number(Baseline) -> Baseline; true -> Rate end,
+    io:format("~p,~p,~p,~p~n", [N, Rate/Baseline2, trunc(Rate), (T2-T1)/1000]),
+    ets:delete(?MODULE),
+    Rate.
 
 worker_loop(idle) ->
     receive
